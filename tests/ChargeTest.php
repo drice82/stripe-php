@@ -2,141 +2,90 @@
 
 namespace Stripe;
 
-class ChargeTest extends TestCase
+define('TEST_RESOURCE_ID', 'ch_123');
+
+class ChargeTest extends StripeMockTestCase
 {
-    public function testUrls()
+    public function testIsListable()
     {
-        $this->assertSame(Charge::classUrl(), '/v1/charges');
-        $charge = new Charge('abcd/efgh');
-        $this->assertSame($charge->instanceUrl(), '/v1/charges/abcd%2Fefgh');
+        $this->expectsRequest(
+            'get',
+            '/v1/charges'
+        );
+        $resources = Charge::all();
+        $this->assertTrue(is_array($resources->data));
+        $this->assertSame("Stripe\\Charge", get_class($resources->data[0]));
     }
 
-    public function testCreate()
+    public function testIsRetrievable()
     {
-        self::authorizeFromEnv();
-
-        $c = Charge::create(
-            array(
-                'amount' => 100,
-                'currency' => 'usd',
-                'card' => 'tok_visa'
-            )
+        $this->expectsRequest(
+            'get',
+            '/v1/charges/' . TEST_RESOURCE_ID
         );
-        $this->assertTrue($c->paid);
-        $this->assertFalse($c->refunded);
+        $resource = Charge::retrieve(TEST_RESOURCE_ID);
+        $this->assertSame("Stripe\\Charge", get_class($resource));
     }
 
-    public function testIdempotentCreate()
+    public function testIsCreatable()
     {
-        self::authorizeFromEnv();
-
-        $c = Charge::create(
-            array(
-                'amount' => 100,
-                'currency' => 'usd',
-                'card' => 'tok_visa'
-            ),
-            array(
-                'idempotency_key' => self::generateRandomString(),
-            )
+        $this->expectsRequest(
+            'post',
+            '/v1/charges'
         );
-
-        $this->assertTrue($c->paid);
-        $this->assertSame(200, $c->getLastResponse()->code);
+        $resource = Charge::create(array(
+            "amount" => 100,
+            "currency" => "usd",
+            "source" => "tok_123"
+        ));
+        $this->assertSame("Stripe\\Charge", get_class($resource));
     }
 
-    public function testRetrieve()
+    public function testIsSaveable()
     {
-        self::authorizeFromEnv();
-
-        $c = Charge::create(
-            array(
-                'amount' => 100,
-                'currency' => 'usd',
-                'card' => 'tok_visa'
-            )
+        $resource = Charge::retrieve(TEST_RESOURCE_ID);
+        $resource->metadata["key"] = "value";
+        $this->expectsRequest(
+            'post',
+            '/v1/charges/' . $resource->id
         );
-        $d = Charge::retrieve($c->id);
-        $this->assertSame(200, $d->getLastResponse()->code);
-        $this->assertSame($d->id, $c->id);
+        $resource->save();
+        $this->assertSame("Stripe\\Charge", get_class($resource));
     }
 
-    public function testUpdateMetadata()
+    public function testIsUpdatable()
     {
-        self::authorizeFromEnv();
-
-        $charge = Charge::create(
-            array(
-                'amount' => 100,
-                'currency' => 'usd',
-                'card' => 'tok_visa'
-            )
+        $this->expectsRequest(
+            'post',
+            '/v1/charges/' . TEST_RESOURCE_ID
         );
-
-        $charge->metadata['test'] = 'foo bar';
-        $charge->save();
-
-        $updatedCharge = Charge::retrieve($charge->id);
-        $this->assertSame('foo bar', $updatedCharge->metadata['test']);
+        $resource = Charge::update(TEST_RESOURCE_ID, array(
+            "metadata" => array("key" => "value"),
+        ));
+        $this->assertSame("Stripe\\Charge", get_class($resource));
     }
 
-    public function testUpdateMetadataAll()
+    public function testCanMarkAsFraudulent()
     {
-        self::authorizeFromEnv();
-
-        $charge = Charge::create(
-            array(
-                'amount' => 100,
-                'currency' => 'usd',
-                'card' => 'tok_visa'
-            )
+        $charge = Charge::retrieve(TEST_RESOURCE_ID);
+        $this->expectsRequest(
+            'post',
+            '/v1/charges/' . $charge->id,
+            array('fraud_details' => array('user_report' => 'fraudulent'))
         );
-
-        $charge->metadata = array('test' => 'foo bar');
-        $charge->save();
-        $this->assertSame(200, $charge->getLastResponse()->code);
-
-        $updatedCharge = Charge::retrieve($charge->id);
-        $this->assertSame('foo bar', $updatedCharge->metadata['test']);
+        $resource = $charge->markAsFraudulent();
+        $this->assertSame("Stripe\\Charge", get_class($resource));
     }
 
-    public function testMarkAsFraudulent()
+    public function testCanMarkAsSafe()
     {
-        self::authorizeFromEnv();
-
-        $charge = Charge::create(
-            array(
-                'amount' => 100,
-                'currency' => 'usd',
-                'card' => 'tok_visa'
-            )
+        $charge = Charge::retrieve(TEST_RESOURCE_ID);
+        $this->expectsRequest(
+            'post',
+            '/v1/charges/' . $charge->id,
+            array('fraud_details' => array('user_report' => 'safe'))
         );
-
-        $charge->refunds->create();
-        $charge->markAsFraudulent();
-
-        $updatedCharge = Charge::retrieve($charge->id);
-        $this->assertSame(
-            'fraudulent',
-            $updatedCharge['fraud_details']['user_report']
-        );
-    }
-
-    public function markAsSafe()
-    {
-        self::authorizeFromEnv();
-
-        $charge = Charge::create(
-            array(
-                'amount' => 100,
-                'currency' => 'usd',
-                'card' => 'tok_visa'
-            )
-        );
-
-        $charge->markAsSafe();
-
-        $updatedCharge = Charge::retrieve($charge->id);
-        $this->assertSame('safe', $updatedCharge['fraud_details']['user_report']);
+        $resource = $charge->markAsSafe();
+        $this->assertSame("Stripe\\Charge", get_class($resource));
     }
 }
