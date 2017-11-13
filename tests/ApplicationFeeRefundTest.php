@@ -2,17 +2,20 @@
 
 namespace Stripe;
 
-class ApplicationFeeRefundTest extends TestCase
-{
-    public function testUrls()
-    {
-        $refund = new ApplicationFeeRefund();
-        $refund->id = 'refund_id';
-        $refund->fee = 'fee_id';
+define('TEST_RESOURCE_ID', 'fr_123');
+define('TEST_FEE_ID', 'fee_123');
 
-        $this->assertSame(
-            $refund->instanceUrl(),
-            '/v1/application_fees/fee_id/refunds/refund_id'
+class ApplicationFeeRefundTest extends StripeMockTestCase
+{
+    public function testIsSaveable()
+    {
+        $resource = ApplicationFee::retrieveRefund(TEST_FEE_ID, TEST_RESOURCE_ID);
+        $resource->metadata["key"] = "value";
+        $this->expectsRequest(
+            'post',
+            '/v1/application_fees/' . $resource->fee . '/refunds/' . $resource->id
         );
+        $resource->save();
+        $this->assertSame("Stripe\\ApplicationFeeRefund", get_class($resource));
     }
 }
