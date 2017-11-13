@@ -2,92 +2,70 @@
 
 namespace Stripe;
 
-class ApplicationFeeTest extends TestCase
+define('TEST_RESOURCE_ID', 'fee_123');
+define('TEST_FEEREFUND_ID', 'fr_123');
+
+class ApplicationFeeTest extends StripeMockTestCase
 {
-    public function testUrls()
+    public function testIsListable()
     {
-        $applicationFee = new ApplicationFee('abcd/efgh');
-        $this->assertSame(
-            $applicationFee->instanceUrl(),
-            '/v1/application_fees/abcd%2Fefgh'
+        $this->expectsRequest(
+            'get',
+            '/v1/application_fees'
         );
+        $resources = ApplicationFee::all();
+        $this->assertTrue(is_array($resources->data));
+        $this->assertSame("Stripe\\ApplicationFee", get_class($resources->data[0]));
     }
 
-    public function testList()
+    public function testIsRetrievable()
     {
-        self::authorizeFromEnv();
-        $d = ApplicationFee::all();
-        $this->assertSame($d->url, '/v1/application_fees');
+        $this->expectsRequest(
+            'get',
+            '/v1/application_fees/' . TEST_RESOURCE_ID
+        );
+        $resource = ApplicationFee::retrieve(TEST_RESOURCE_ID);
+        $this->assertSame("Stripe\\ApplicationFee", get_class($resource));
     }
 
-    public function testStaticCreateRefund()
+    public function testCanCreateRefund()
     {
-        $this->mockRequest(
-            'POST',
-            '/v1/application_fees/fee_123/refunds',
-            array(),
-            array('id' => 'fr_123', 'object' => 'fee_refund')
+        $this->expectsRequest(
+            'post',
+            '/v1/application_fees/' . TEST_RESOURCE_ID . '/refunds'
         );
-
-        $feeRefund = ApplicationFee::createRefund(
-            'fee_123'
-        );
-
-        $this->assertSame('fr_123', $feeRefund->id);
-        $this->assertSame('fee_refund', $feeRefund->object);
+        $resource = ApplicationFee::createRefund(TEST_RESOURCE_ID);
+        $this->assertSame("Stripe\\ApplicationFeeRefund", get_class($resource));
     }
 
-    public function testStaticRetrieveRefund()
+    public function testCanRetrieveRefund()
     {
-        $this->mockRequest(
-            'GET',
-            '/v1/application_fees/fee_123/refunds/fr_123',
-            array(),
-            array('id' => 'fr_123', 'object' => 'fee_refund')
+        $this->expectsRequest(
+            'get',
+            '/v1/application_fees/' . TEST_RESOURCE_ID . '/refunds/' . TEST_FEEREFUND_ID
         );
-
-        $feeRefund = ApplicationFee::retrieveRefund(
-            'fee_123',
-            'fr_123'
-        );
-
-        $this->assertSame('fr_123', $feeRefund->id);
-        $this->assertSame('fee_refund', $feeRefund->object);
+        $resource = ApplicationFee::retrieveRefund(TEST_RESOURCE_ID, TEST_FEEREFUND_ID);
+        $this->assertSame("Stripe\\ApplicationFeeRefund", get_class($resource));
     }
 
-    public function testStaticUpdateRefund()
+    public function testCanUpdateRefund()
     {
-        $this->mockRequest(
-            'POST',
-            '/v1/application_fees/fee_123/refunds/fr_123',
-            array('metadata' => array('foo' => 'bar')),
-            array('id' => 'fr_123', 'object' => 'fee_refund')
+        $this->expectsRequest(
+            'post',
+            '/v1/application_fees/' . TEST_RESOURCE_ID . '/refunds/' . TEST_FEEREFUND_ID
         );
-
-        $feeRefund = ApplicationFee::updateRefund(
-            'fee_123',
-            'fr_123',
-            array('metadata' => array('foo' => 'bar'))
-        );
-
-        $this->assertSame('fr_123', $feeRefund->id);
-        $this->assertSame('fee_refund', $feeRefund->object);
+        $resource = ApplicationFee::updateRefund(TEST_RESOURCE_ID, TEST_FEEREFUND_ID);
+        $this->assertSame("Stripe\\ApplicationFeeRefund", get_class($resource));
     }
 
-    public function testStaticAllRefunds()
+    public function testCanListRefunds()
     {
-        $this->mockRequest(
-            'GET',
-            '/v1/application_fees/fee_123/refunds',
-            array(),
-            array('object' => 'list', 'data' => array())
+        $this->expectsRequest(
+            'get',
+            '/v1/application_fees/' . TEST_RESOURCE_ID . '/refunds'
         );
-
-        $feeRefunds = ApplicationFee::allRefunds(
-            'fee_123'
-        );
-
-        $this->assertSame('list', $feeRefunds->object);
-        $this->assertEmpty($feeRefunds->data);
+        $resources = ApplicationFee::allRefunds(TEST_RESOURCE_ID);
+        $this->assertTrue(is_array($resources->data));
+        $this->assertSame("Stripe\\ApplicationFeeRefund", get_class($resources->data[0]));
     }
 }

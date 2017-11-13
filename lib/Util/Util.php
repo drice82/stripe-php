@@ -68,6 +68,7 @@ abstract class Util
             'account' => 'Stripe\\Account',
             'alipay_account' => 'Stripe\\AlipayAccount',
             'apple_pay_domain' => 'Stripe\\ApplePayDomain',
+            'application_fee' => 'Stripe\\ApplicationFee',
             'bank_account' => 'Stripe\\BankAccount',
             'balance_transaction' => 'Stripe\\BalanceTransaction',
             'card' => 'Stripe\\Card',
