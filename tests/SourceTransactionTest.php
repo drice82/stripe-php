@@ -2,12 +2,17 @@
 
 namespace Stripe;
 
-class SourceTransactionTest extends TestCase
+class SourceTransactionTest extends StripeMockTestCase
 {
-    public function testList()
+    public function testIsListable()
     {
-        $this->mockRequest(
-            'GET',
+        $source = \Stripe\Source::constructFrom(
+            array('id' => 'src_foo', 'object' => 'source'),
+            new \Stripe\Util\RequestOptions()
+        );
+
+        $this->stubRequest(
+            'get',
             '/v1/sources/src_foo/source_transactions',
             array(),
             array(
@@ -22,15 +27,9 @@ class SourceTransactionTest extends TestCase
                 'has_more' => false,
             )
         );
-
-        $source = \Stripe\Source::constructFrom(
-            array('id' => 'src_foo', 'object' => 'source'),
-            new \Stripe\Util\RequestOptions()
-        );
-
         $transactions = $source->sourceTransactions();
 
         $this->assertTrue(is_array($transactions->data));
-        $this->assertSame('source_transaction', $transactions->data[0]->object);
+        $this->assertSame('Stripe\\SourceTransaction', get_class($transactions->data[0]));
     }
 }

@@ -2,28 +2,76 @@
 
 namespace Stripe;
 
-class CouponTest extends TestCase
+class CouponTest extends StripeMockTestCase
 {
-    public function testSave()
+    public function testIsListable()
     {
-        self::authorizeFromEnv();
-        $id = 'test_coupon-' . self::generateRandomString(20);
-        $c = Coupon::create(
-            array(
-                'percent_off' => 25,
-                'duration' => 'repeating',
-                'duration_in_months' => 5,
-                'id' => $id,
-            )
+        $this->expectsRequest(
+            'get',
+            '/v1/coupons'
         );
-        $this->assertSame($id, $c->id);
-        // @codingStandardsIgnoreStart
-        $this->assertSame(25, $c->percent_off);
-        // @codingStandardsIgnoreEnd
-        $c->metadata['foo'] = 'bar';
-        $c->save();
+        $coupons = Coupon::all();
+        $this->assertTrue(is_array($coupons->data));
+        $this->assertSame("Stripe\\Coupon", get_class($coupons->data[0]));
+    }
 
-        $stripeCoupon = Coupon::retrieve($id);
-        $this->assertEquals($c->metadata, $stripeCoupon->metadata);
+    public function testIsRetrievable()
+    {
+        $this->expectsRequest(
+            'get',
+            '/v1/coupons/250FF'
+        );
+        $coupon = Coupon::retrieve("250FF");
+        $this->assertSame("Stripe\\Coupon", get_class($coupon));
+    }
+
+    public function testIsCreatable()
+    {
+        $this->expectsRequest(
+            'post',
+            '/v1/coupons'
+        );
+        $coupon = Coupon::create(array(
+            "percent_off" => 25,
+            "duration" => "repeating",
+            "duration_in_months" => 3,
+            "id" => "250FF",
+        ));
+        $this->assertSame("Stripe\\Coupon", get_class($coupon));
+    }
+
+    public function testIsSaveable()
+    {
+        $coupon = Coupon::retrieve("250FF");
+        $coupon->metadata["key"] = "value";
+        $this->expectsRequest(
+            'post',
+            '/v1/coupons/250FF'
+        );
+        $coupon->save();
+        $this->assertSame("Stripe\\Coupon", get_class($coupon));
+    }
+
+    public function testIsUpdatable()
+    {
+        $this->expectsRequest(
+            'post',
+            '/v1/coupons/250FF'
+        );
+        $coupon = Coupon::update("250FF", array(
+            "metadata" => array("key" => "value"),
+        ));
+        $this->assertSame("Stripe\\Coupon", get_class($coupon));
+    }
+
+    public function testIsDeletable()
+    {
+        $coupon = Coupon::retrieve("250FF");
+        $this->expectsRequest(
+            'delete',
+            '/v1/coupons/250FF'
+        );
+        $coupon->delete();
+        $this->assertSame("Stripe\\Coupon", get_class($coupon));
     }
 }
