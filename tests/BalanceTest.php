@@ -2,14 +2,15 @@
 
 namespace Stripe;
 
-class BalanceTest extends TestCase
+class BalanceTest extends StripeMockTestCase
 {
-    public function testRetrieve()
+    public function testIsRetrievable()
     {
-        self::authorizeFromEnv();
-        $d = Balance::retrieve();
-        $this->assertSame($d->object, "balance");
-        $this->assertTrue(Util\Util::isList($d->available));
-        $this->assertTrue(Util\Util::isList($d->pending));
+        $this->expectsRequest(
+            'get',
+            '/v1/balance'
+        );
+        $resource = Balance::retrieve();
+        $this->assertSame("Stripe\\Balance", get_class($resource));
     }
 }
