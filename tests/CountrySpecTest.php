@@ -2,30 +2,28 @@
 
 namespace Stripe;
 
-class CountrySpecTest extends TestCase
-{
-    public function testRetrieve()
-    {
-        self::authorizeFromEnv();
+define('TEST_RESOURCE_ID', 'US');
 
-        $country = "US";
-        $d = CountrySpec::retrieve($country);
-        $this->assertSame($d->object, "country_spec");
-        $this->assertSame($d->id, $country);
-        $this->assertGreaterThan(0, count($d->supported_bank_account_currencies));
-        $this->assertGreaterThan(0, count($d->supported_payment_currencies));
-        $this->assertGreaterThan(0, count($d->supported_payment_methods));
-        $this->assertGreaterThan(0, count($d->verification_fields));
+class CountrySpecTest extends StripeMockTestCase
+{
+    public function testIsListable()
+    {
+        $this->expectsRequest(
+            'get',
+            '/v1/country_specs'
+        );
+        $resources = CountrySpec::all();
+        $this->assertTrue(is_array($resources->data));
+        $this->assertSame("Stripe\\CountrySpec", get_class($resources->data[0]));
     }
 
-    public function testList()
+    public function testIsRetrievable()
     {
-        self::authorizeFromEnv();
-
-        $d = CountrySpec::all();
-        $this->assertSame($d->object, "list");
-        $this->assertGreaterThan(0, count($d->data));
-        $this->assertSame($d->data[0]->object, "country_spec");
-        $this->assertInstanceOf("Stripe\\CountrySpec", $d->data[0]);
+        $this->expectsRequest(
+            'get',
+            '/v1/country_specs/' . TEST_RESOURCE_ID
+        );
+        $resource = CountrySpec::retrieve(TEST_RESOURCE_ID);
+        $this->assertSame("Stripe\\CountrySpec", get_class($resource));
     }
 }
