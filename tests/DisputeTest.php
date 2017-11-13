@@ -2,89 +2,64 @@
 
 namespace Stripe;
 
-class DisputeTest extends TestCase
+define('TEST_RESOURCE_ID', 'dp_123');
+
+class DisputeTest extends StripeMockTestCase
 {
-    public function testUrls()
+    public function testIsListable()
     {
-        $this->assertSame(Dispute::classUrl(), '/v1/disputes');
-        $dispute = new Dispute('dp_123');
-        $this->assertSame($dispute->instanceUrl(), '/v1/disputes/dp_123');
-    }
-
-    private function createDisputedCharge()
-    {
-        $c = Charge::create(
-            array(
-                'amount' => 100,
-                'currency' => 'usd',
-                'source' => 'tok_createDispute'
-            )
+        $this->expectsRequest(
+            'get',
+            '/v1/disputes'
         );
-        $c = Charge::retrieve($c->id);
-
-        $attempts = 0;
-
-        while ($c->dispute === null) {
-            if ($attempts > 5) {
-                throw new \Exception("Charge is taking too long to be disputed");
-            }
-            sleep(1);
-            $c = Charge::retrieve($c->id);
-            $attempts += 1;
-        }
-
-        return $c;
+        $resources = Dispute::all();
+        $this->assertTrue(is_array($resources->data));
+        $this->assertSame("Stripe\\Dispute", get_class($resources->data[0]));
     }
 
-    public function testAll()
+    public function testIsRetrievable()
     {
-        self::authorizeFromEnv();
-
-        $sublist = Dispute::all(
-            array(
-                'limit' => 3,
-            )
+        $this->expectsRequest(
+            'get',
+            '/v1/disputes/' . TEST_RESOURCE_ID
         );
-        $this->assertSame(3, count($sublist->data));
+        $resource = Dispute::retrieve(TEST_RESOURCE_ID);
+        $this->assertSame("Stripe\\Dispute", get_class($resource));
     }
 
-
-    public function testUpdate()
+    public function testIsSaveable()
     {
-        self::authorizeFromEnv();
-
-        $c = $this->createDisputedCharge();
-
-        $d = Dispute::retrieve($c->dispute);
-        $d->evidence["customer_name"] = "Bob";
-        $s = $d->save();
-
-        $this->assertSame($c->dispute, $s->id);
-        $this->assertSame("Bob", $s->evidence["customer_name"]);
+        $resource = Dispute::retrieve(TEST_RESOURCE_ID);
+        $resource->metadata["key"] = "value";
+        $this->expectsRequest(
+            'post',
+            '/v1/disputes/' . TEST_RESOURCE_ID
+        );
+        $resource->save();
+        $this->assertSame("Stripe\\Dispute", get_class($resource));
     }
 
-    public function testClose()
+    public function testIsUpdatable()
     {
-        self::authorizeFromEnv();
-
-        $c = $this->createDisputedCharge();
-        $d = Dispute::retrieve($c->dispute);
-
-        $this->assertNotSame("lost", $d->status);
-
-        $d->close();
-
-        $this->assertSame("lost", $d->status);
+        $this->expectsRequest(
+            'post',
+            '/v1/disputes/' . TEST_RESOURCE_ID
+        );
+        $resource = Dispute::update(TEST_RESOURCE_ID, array(
+            "metadata" => array("key" => "value"),
+        ));
+        $this->assertSame("Stripe\\Dispute", get_class($resource));
     }
 
-    public function testRetrieve()
+    public function testIsClosable()
     {
-        self::authorizeFromEnv();
-
-        $c = $this->createDisputedCharge();
-
-        $d = Dispute::retrieve($c->dispute);
-
-        $this->assertSame($c->dispute, $d->id);
+        $dispute = Dispute::retrieve(TEST_RESOURCE_ID);
+        $this->expectsRequest(
+            'post',
+            '/v1/disputes/' . $dispute->id . '/close'
+        );
+        $resource = $dispute->close();
+        $this->assertSame("Stripe\\Dispute", get_class($resource));
+        $this->assertSame($resource, $dispute);
     }
 }
