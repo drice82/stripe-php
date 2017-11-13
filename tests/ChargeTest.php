@@ -65,6 +65,53 @@ class ChargeTest extends StripeMockTestCase
         $this->assertSame("Stripe\\Charge", get_class($resource));
     }
 
+    public function testCanRefund()
+    {
+        $charge = Charge::retrieve(TEST_RESOURCE_ID);
+        $this->expectsRequest(
+            'post',
+            '/v1/charges/' . $charge->id . '/refund'
+        );
+        $resource = $charge->refund();
+        $this->assertSame("Stripe\\Charge", get_class($resource));
+        $this->assertSame($resource, $charge);
+    }
+
+    public function testCanCapture()
+    {
+        $charge = Charge::retrieve(TEST_RESOURCE_ID);
+        $this->expectsRequest(
+            'post',
+            '/v1/charges/' . $charge->id . '/capture'
+        );
+        $resource = $charge->capture();
+        $this->assertSame("Stripe\\Charge", get_class($resource));
+        $this->assertSame($resource, $charge);
+    }
+
+    public function testCanUpdateDispute()
+    {
+        $charge = Charge::retrieve(TEST_RESOURCE_ID);
+        $this->expectsRequest(
+            'post',
+            '/v1/charges/' . $charge->id . '/dispute'
+        );
+        $resource = $charge->updateDispute();
+        $this->assertSame("Stripe\\Dispute", get_class($resource));
+    }
+
+    public function testCanCloseDispute()
+    {
+        $charge = Charge::retrieve(TEST_RESOURCE_ID);
+        $this->expectsRequest(
+            'post',
+            '/v1/charges/' . $charge->id . '/dispute/close'
+        );
+        $resource = $charge->closeDispute();
+        $this->assertSame("Stripe\\Charge", get_class($resource));
+        $this->assertSame($resource, $charge);
+    }
+
     public function testCanMarkAsFraudulent()
     {
         $charge = Charge::retrieve(TEST_RESOURCE_ID);
@@ -75,6 +122,7 @@ class ChargeTest extends StripeMockTestCase
         );
         $resource = $charge->markAsFraudulent();
         $this->assertSame("Stripe\\Charge", get_class($resource));
+        $this->assertSame($resource, $charge);
     }
 
     public function testCanMarkAsSafe()
@@ -87,5 +135,6 @@ class ChargeTest extends StripeMockTestCase
         );
         $resource = $charge->markAsSafe();
         $this->assertSame("Stripe\\Charge", get_class($resource));
+        $this->assertSame($resource, $charge);
     }
 }
