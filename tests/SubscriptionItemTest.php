@@ -2,37 +2,76 @@
 
 namespace Stripe;
 
-class SubscriptionItemTest extends TestCase
+define('TEST_RESOURCE_ID', 'si_123');
+
+class SubscriptionItemItemTest extends StripeMockTestCase
 {
-    public function testCreateUpdateRetrieveListCancel()
+    public function testIsListable()
     {
-        $plan0ID = 'gold-' . self::generateRandomString(20);
-        self::retrieveOrCreatePlan($plan0ID);
+        $this->expectsRequest(
+            'get',
+            '/v1/subscription_items'
+        );
+        $resources = SubscriptionItem::all();
+        $this->assertTrue(is_array($resources->data));
+        $this->assertSame("Stripe\\SubscriptionItem", get_class($resources->data[0]));
+    }
 
-        $customer = self::createTestCustomer();
-        $sub = Subscription::create(array('plan' => $plan0ID, 'customer' => $customer->id));
+    public function testIsRetrievable()
+    {
+        $this->expectsRequest(
+            'get',
+            '/v1/subscription_items/' . TEST_RESOURCE_ID
+        );
+        $resource = SubscriptionItem::retrieve(TEST_RESOURCE_ID);
+        $this->assertSame("Stripe\\SubscriptionItem", get_class($resource));
+    }
 
-        $plan1ID = 'gold-' . self::generateRandomString(20);
-        self::retrieveOrCreatePlan($plan1ID);
+    public function testIsCreatable()
+    {
+        $this->expectsRequest(
+            'post',
+            '/v1/subscription_items'
+        );
+        $resource = SubscriptionItem::create(array(
+            "plan" => "plan",
+            "subscription" => "sub_123"
+        ));
+        $this->assertSame("Stripe\\SubscriptionItem", get_class($resource));
+    }
 
-        $subItem = SubscriptionItem::create(array('plan' => $plan1ID, 'subscription' => $sub->id));
-        $this->assertSame($subItem->plan->id, $plan1ID);
+    public function testIsSaveable()
+    {
+        $resource = SubscriptionItem::retrieve(TEST_RESOURCE_ID);
+        $resource->metadata["key"] = "value";
+        $this->expectsRequest(
+            'post',
+            '/v1/subscription_items/' . $resource->id
+        );
+        $resource->save();
+        $this->assertSame("Stripe\\SubscriptionItem", get_class($resource));
+    }
 
-        $subItem->quantity = 2;
-        $subItem->save();
+    public function testIsUpdatable()
+    {
+        $this->expectsRequest(
+            'post',
+            '/v1/subscription_items/' . TEST_RESOURCE_ID
+        );
+        $resource = SubscriptionItem::update(TEST_RESOURCE_ID, array(
+            "metadata" => array("key" => "value"),
+        ));
+        $this->assertSame("Stripe\\SubscriptionItem", get_class($resource));
+    }
 
-        $subItem = SubscriptionItem::retrieve($subItem->id);
-        $this->assertSame($subItem->quantity, 2);
-
-        // Update the quantity parameter one more time
-        $subItem = SubscriptionItem::update($subItem->id, array('quantity' => 3));
-        $this->assertSame($subItem->quantity, 3);
-
-        $subItems = SubscriptionItem::all(array('subscription'=>$sub->id, 'limit'=>3));
-        $this->assertSame(get_class($subItems->data[0]), 'Stripe\SubscriptionItem');
-        $this->assertSame(2, count($subItems->data));
-
-        $subItem->delete();
-        $this->assertTrue($subItem->deleted);
+    public function testIsDeletable()
+    {
+        $resource = SubscriptionItem::retrieve(TEST_RESOURCE_ID);
+        $this->expectsRequest(
+            'delete',
+            '/v1/subscription_items/' . $resource->id
+        );
+        $resource->delete();
+        $this->assertSame("Stripe\\SubscriptionItem", get_class($resource));
     }
 }
