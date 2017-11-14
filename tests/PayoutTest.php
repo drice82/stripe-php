@@ -2,88 +2,76 @@
 
 namespace Stripe;
 
-class PayoutTest extends TestCase
+define('TEST_RESOURCE_ID', 'po_123');
+
+class PayoutTest extends StripeMockTestCase
 {
-    private $managedAccount = null;
-
-    /**
-     * Create a managed account and put enough funds in the balance
-     * to be able to create a payout afterwards. Also try to re-use
-     * the managed account across the tests to avoid hitting the
-     * rate limit for account creation.
-     */
-    private function createAccountWithBalance()
+    public function testIsListable()
     {
-        if ($this->managedAccount === null) {
-            self::authorizeFromEnv();
-            $account = self::createTestManagedAccount();
-
-            $charge = \Stripe\Charge::create(array(
-                'currency' => 'usd',
-                'amount' => '10000',
-                'source' => 'tok_bypassPending',
-                'destination' => array(
-                    'account' => $account->id
-                )
-            ));
-
-            $this->managedAccount = $account;
-        }
-
-        return $this->managedAccount;
-    }
-
-    private function createPayoutFromManagedAccount($accountId)
-    {
-        $payout = Payout::create(
-            array(
-                'amount' => 100,
-                'currency' => 'usd',
-            ),
-            array(
-                'stripe_account' => $accountId
-            )
+        $this->expectsRequest(
+            'get',
+            '/v1/payouts'
         );
-
-        return $payout;
+        $resources = Payout::all();
+        $this->assertTrue(is_array($resources->data));
+        $this->assertSame("Stripe\\Payout", get_class($resources->data[0]));
     }
 
-    public function testCreate()
+    public function testIsRetrievable()
     {
-        $account = self::createAccountWithBalance();
-        $payout =  self::createPayoutFromManagedAccount($account->id);
-
-        $this->assertSame('pending', $payout->status);
+        $this->expectsRequest(
+            'get',
+            '/v1/payouts/' . TEST_RESOURCE_ID
+        );
+        $resource = Payout::retrieve(TEST_RESOURCE_ID);
+        $this->assertSame("Stripe\\Payout", get_class($resource));
     }
 
-    public function testRetrieve()
+    public function testIsCreatable()
     {
-        $account = self::createAccountWithBalance();
-        $payout =  self::createPayoutFromManagedAccount($account->id);
-        $reloaded = Payout::retrieve($payout->id, array('stripe_account' => $account->id));
-        $this->assertSame($reloaded->id, $payout->id);
+        $this->expectsRequest(
+            'post',
+            '/v1/payouts'
+        );
+        $resource = Payout::create(array(
+            "amount" => 100,
+            "currency" => "usd"
+        ));
+        $this->assertSame("Stripe\\Payout", get_class($resource));
     }
 
-    public function testPayoutUpdateMetadata()
+    public function testIsSaveable()
     {
-        $account = self::createAccountWithBalance();
-        $payout =  self::createPayoutFromManagedAccount($account->id);
-        $payout->metadata['test'] = 'foo bar';
-        $payout->save();
-
-        $updatedPayout = Payout::retrieve($payout->id, array('stripe_account' => $account->id));
-        $this->assertSame('foo bar', $updatedPayout->metadata['test']);
+        $resource = Payout::retrieve(TEST_RESOURCE_ID);
+        $resource->metadata["key"] = "value";
+        $this->expectsRequest(
+            'post',
+            '/v1/payouts/' . TEST_RESOURCE_ID
+        );
+        $resource->save();
+        $this->assertSame("Stripe\\Payout", get_class($resource));
     }
 
-    public function testPayoutUpdateMetadataAll()
+    public function testIsUpdatable()
     {
-        $account = self::createAccountWithBalance();
-        $payout =  self::createPayoutFromManagedAccount($account->id);
+        $this->expectsRequest(
+            'post',
+            '/v1/payouts/' . TEST_RESOURCE_ID
+        );
+        $resource = Payout::update(TEST_RESOURCE_ID, array(
+            "metadata" => array("key" => "value"),
+        ));
+        $this->assertSame("Stripe\\Payout", get_class($resource));
+    }
 
-        $payout->metadata = array('test' => 'foo bar');
-        $payout->save();
-
-        $updatedPayout = Payout::retrieve($payout->id, array('stripe_account' => $account->id));
-        $this->assertSame('foo bar', $updatedPayout->metadata['test']);
+    public function testIsCancelable()
+    {
+        $resource = Payout::retrieve(TEST_RESOURCE_ID);
+        $this->expectsRequest(
+            'post',
+            '/v1/payouts/' . $resource->id . '/cancel'
+        );
+        $resource->cancel();
+        $this->assertSame("Stripe\\Payout", get_class($resource));
     }
 }

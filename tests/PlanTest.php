@@ -2,50 +2,79 @@
 
 namespace Stripe;
 
-class PlanTest extends TestCase
+define('TEST_RESOURCE_ID', 'plan');
+
+class PlanTest extends StripeMockTestCase
 {
-    public function testDeletion()
+    public function testIsListable()
     {
-        self::authorizeFromEnv();
-        $p = Plan::create(array(
-            'amount' => 2000,
-            'interval' => 'month',
-            'currency' => 'usd',
-            'name' => 'Plan',
-            'id' => 'gold-' . self::generateRandomString(20)
-        ));
-        $p->delete();
-        $this->assertTrue($p->deleted);
+        $this->expectsRequest(
+            'get',
+            '/v1/plans'
+        );
+        $resources = Plan::all();
+        $this->assertTrue(is_array($resources->data));
+        $this->assertSame("Stripe\\Plan", get_class($resources->data[0]));
     }
 
-    public function testFalseyId()
+    public function testIsRetrievable()
     {
-        try {
-            $retrievedPlan = Plan::retrieve('0');
-        } catch (Error\InvalidRequest $e) {
-            // Can either succeed or 404, all other errors are bad
-            if ($e->httpStatus !== 404) {
-                $this->fail();
-            }
-        }
+        $this->expectsRequest(
+            'get',
+            '/v1/plans/' . TEST_RESOURCE_ID
+        );
+        $resource = Plan::retrieve(TEST_RESOURCE_ID);
+        $this->assertSame("Stripe\\Plan", get_class($resource));
     }
 
-    public function testSave()
+    public function testIsCreatable()
     {
-        self::authorizeFromEnv();
-        $planID = 'gold-' . self::generateRandomString(20);
-        $p = Plan::create(array(
-            'amount'   => 2000,
+        $this->expectsRequest(
+            'post',
+            '/v1/plans'
+        );
+        $resource = Plan::create(array(
+            'amount' => 100,
             'interval' => 'month',
             'currency' => 'usd',
-            'name'     => 'Plan',
-            'id'       => $planID
+            'name' => TEST_RESOURCE_ID,
+            'id' => TEST_RESOURCE_ID
         ));
-        $p->name = 'A new plan name';
-        $p->save();
-        $this->assertSame($p->name, 'A new plan name');
+        $this->assertSame("Stripe\\Plan", get_class($resource));
+    }
 
-        $stripePlan = Plan::retrieve($planID);
-        $this->assertSame($p->name, $stripePlan->name);
+    public function testIsSaveable()
+    {
+        $resource = Plan::retrieve(TEST_RESOURCE_ID);
+        $resource->metadata["key"] = "value";
+        $this->expectsRequest(
+            'post',
+            '/v1/plans/' . TEST_RESOURCE_ID
+        );
+        $resource->save();
+        $this->assertSame("Stripe\\Plan", get_class($resource));
+    }
+
+    public function testIsUpdatable()
+    {
+        $this->expectsRequest(
+            'post',
+            '/v1/plans/' . TEST_RESOURCE_ID
+        );
+        $resource = Plan::update(TEST_RESOURCE_ID, array(
+            "metadata" => array("key" => "value"),
+        ));
+        $this->assertSame("Stripe\\Plan", get_class($resource));
+    }
+
+    public function testIsDeletable()
+    {
+        $resource = Plan::retrieve(TEST_RESOURCE_ID);
+        $this->expectsRequest(
+            'delete',
+            '/v1/plans/' . TEST_RESOURCE_ID
+        );
+        $resource->delete();
+        $this->assertSame("Stripe\\Plan", get_class($resource));
     }
 }

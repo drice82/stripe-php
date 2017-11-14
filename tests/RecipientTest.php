@@ -2,84 +2,89 @@
 
 namespace Stripe;
 
-class RecipientTest extends TestCase
+define('TEST_RESOURCE_ID', 'rp_123');
+
+class RecipientTest extends StripeMockTestCase
 {
-    public function testDeletion()
+    public function testIsListable()
     {
-        $recipient = self::createTestRecipient();
-        $recipient->delete();
-
-        $this->assertTrue($recipient->deleted);
+        $this->expectsRequest(
+            'get',
+            '/v1/recipients'
+        );
+        $resources = Recipient::all();
+        $this->assertTrue(is_array($resources->data));
+        $this->assertSame("Stripe\\Recipient", get_class($resources->data[0]));
     }
 
-    public function testSave()
+    public function testIsRetrievable()
     {
-        $recipient = self::createTestRecipient();
-
-        $recipient->email = 'gdb@stripe.com';
-        $recipient->save();
-        $this->assertSame($recipient->email, 'gdb@stripe.com');
-
-        $stripeRecipient = Recipient::retrieve($recipient->id);
-        $this->assertSame($recipient->email, $stripeRecipient->email);
+        $this->expectsRequest(
+            'get',
+            '/v1/recipients/' . TEST_RESOURCE_ID
+        );
+        $resource = Recipient::retrieve(TEST_RESOURCE_ID);
+        $this->assertSame("Stripe\\Recipient", get_class($resource));
     }
 
-    /**
-     * @expectedException Stripe\Error\InvalidRequest
-     */
-    public function testBogusAttribute()
+    public function testIsCreatable()
     {
-        $recipient = self::createTestRecipient();
-        $recipient->bogus = 'bogus';
-        $recipient->save();
+        $this->expectsRequest(
+            'post',
+            '/v1/recipients'
+        );
+        $resource = Recipient::create(array(
+            "name" => "name",
+            "type" => "individual"
+        ));
+        $this->assertSame("Stripe\\Recipient", get_class($resource));
     }
 
-    public function testRecipientAddCard()
+    public function testIsSaveable()
     {
-        $recipient = $this->createTestRecipient();
-        $createdCard = $recipient->cards->create(array("card" => 'tok_visa_debit'));
-        $recipient->save();
-
-        $updatedRecipient = Recipient::retrieve($recipient->id);
-        $updatedCards = $updatedRecipient->cards->all();
-        $this->assertSame(count($updatedCards["data"]), 1);
+        $resource = Recipient::retrieve(TEST_RESOURCE_ID);
+        $resource->metadata["key"] = "value";
+        $this->expectsRequest(
+            'post',
+            '/v1/recipients/' . TEST_RESOURCE_ID
+        );
+        $resource->save();
+        $this->assertSame("Stripe\\Recipient", get_class($resource));
     }
 
-    public function testRecipientUpdateCard()
+    public function testIsUpdatable()
     {
-        $recipient = $this->createTestRecipient();
-        $createdCard = $recipient->cards->create(array("card" => 'tok_visa_debit'));
-        $recipient->save();
-
-        $createdCards = $recipient->cards->all();
-        $this->assertSame(count($createdCards["data"]), 1);
-
-        $card = $createdCards['data'][0];
-        $card->name = "Jane Austen";
-        $card->save();
-
-        $updatedRecipient = Recipient::retrieve($recipient->id);
-        $updatedCards = $updatedRecipient->cards->all();
-        $this->assertSame($updatedCards["data"][0]->name, "Jane Austen");
+        $this->expectsRequest(
+            'post',
+            '/v1/recipients/' . TEST_RESOURCE_ID
+        );
+        $resource = Recipient::update(TEST_RESOURCE_ID, array(
+            "metadata" => array("key" => "value"),
+        ));
+        $this->assertSame("Stripe\\Recipient", get_class($resource));
     }
 
-    public function testRecipientDeleteCard()
+    public function testIsDeletable()
     {
-        $recipient = $this->createTestRecipient();
-        $createdCard = $recipient->cards->create(array("card" => 'tok_visa_debit'));
-        $recipient->save();
+        $resource = Recipient::retrieve(TEST_RESOURCE_ID);
+        $this->expectsRequest(
+            'delete',
+            '/v1/recipients/' . TEST_RESOURCE_ID
+        );
+        $resource->delete();
+        $this->assertSame("Stripe\\Recipient", get_class($resource));
+    }
 
-        $updatedRecipient = Recipient::retrieve($recipient->id);
-        $updatedCards = $updatedRecipient->cards->all();
-        $this->assertSame(count($updatedCards["data"]), 1);
-
-        $deleteStatus =
-        $updatedRecipient->cards->retrieve($createdCard->id)->delete();
-        $this->assertTrue($deleteStatus->deleted);
-        $updatedRecipient->save();
-
-        $postDeleteRecipient = Recipient::retrieve($recipient->id);
-        $postDeleteCards = $postDeleteRecipient->cards->all();
-        $this->assertSame(count($postDeleteCards["data"]), 0);
+    public function testCanListTransfers()
+    {
+        $recipient = Recipient::retrieve(TEST_RESOURCE_ID);
+        $this->expectsRequest(
+            'get',
+            '/v1/transfers',
+            array("recipient" => $recipient->id)
+        );
+        $resources = $recipient->transfers();
+        $this->assertTrue(is_array($resources->data));
+        $this->assertSame("Stripe\\Transfer", get_class($resources->data[0]));
     }
 }

@@ -2,79 +2,64 @@
 
 namespace Stripe;
 
-class RefundTest extends TestCase
+define('TEST_RESOURCE_ID', 're_123');
+
+class RefundTest extends StripeMockTestCase
 {
-
-    public function testCreate()
+    public function testIsListable()
     {
-        $charge = self::createTestCharge();
-        $refund = Refund::create(array('amount' => 100, 'charge' => $charge->id));
-        $this->assertSame(100, $refund->amount);
-        $this->assertSame($charge->id, $refund->charge);
+        $this->expectsRequest(
+            'get',
+            '/v1/refunds'
+        );
+        $resources = Refund::all();
+        $this->assertTrue(is_array($resources->data));
+        $this->assertSame("Stripe\\Refund", get_class($resources->data[0]));
     }
 
-    public function testUpdateAndRetrieve()
+    public function testIsRetrievable()
     {
-        $charge = self::createTestCharge();
-        $ref = Refund::create(array('amount' => 100, 'charge' => $charge->id));
-        $ref->metadata["key"] = "value";
-        $ref->save();
-        $ref = Refund::retrieve($ref->id);
-        $this->assertSame("value", $ref->metadata["key"], "value");
+        $this->expectsRequest(
+            'get',
+            '/v1/refunds/' . TEST_RESOURCE_ID
+        );
+        $resource = Refund::retrieve(TEST_RESOURCE_ID);
+        $this->assertSame("Stripe\\Refund", get_class($resource));
     }
 
-    public function testListForCharge()
+    public function testIsCreatable()
     {
-        $charge = self::createTestCharge();
-        $refA = Refund::create(array('amount' => 100, 'charge' => $charge->id));
-        $refB = Refund::create(array('amount' => 50, 'charge' => $charge->id));
-
-        $all = Refund::all(array('charge' => $charge));
-        $this->assertSame(false, $all['has_more']);
-        $this->assertSame(2, count($all->data));
-        $this->assertSame($refB->id, $all->data[0]->id);
-        $this->assertSame($refA->id, $all->data[1]->id);
+        $this->expectsRequest(
+            'post',
+            '/v1/refunds'
+        );
+        $resource = Refund::create(array(
+            "charge" => "ch_123"
+        ));
+        $this->assertSame("Stripe\\Refund", get_class($resource));
     }
 
-    public function testList()
+    public function testIsSaveable()
     {
-        $all = Refund::all();
-
-        // Fetches all refunds on this test account.
-        $this->assertSame(true, $all['has_more']);
-        $this->assertSame(10, count($all->data));
+        $resource = Refund::retrieve(TEST_RESOURCE_ID);
+        $resource->metadata["key"] = "value";
+        $this->expectsRequest(
+            'post',
+            '/v1/refunds/' . TEST_RESOURCE_ID
+        );
+        $resource->save();
+        $this->assertSame("Stripe\\Refund", get_class($resource));
     }
 
-    // Deprecated charge endpoints:
-
-    public function testCreateViaCharge()
+    public function testIsUpdatable()
     {
-        $charge = self::createTestCharge();
-        $ref = $charge->refunds->create(array('amount' => 100));
-        $this->assertSame(100, $ref->amount);
-        $this->assertSame($charge->id, $ref->charge);
-    }
-
-    public function testUpdateAndRetrieveViaCharge()
-    {
-        $charge = self::createTestCharge();
-        $ref = $charge->refunds->create(array('amount' => 100));
-        $ref->metadata["key"] = "value";
-        $ref->save();
-        $ref = $charge->refunds->retrieve($ref->id);
-        $this->assertSame("value", $ref->metadata["key"], "value");
-    }
-
-    public function testListViaCharge()
-    {
-        $charge = self::createTestCharge();
-        $refA = $charge->refunds->create(array('amount' => 50));
-        $refB = $charge->refunds->create(array('amount' => 50));
-
-        $all = $charge->refunds->all();
-        $this->assertSame(false, $all['has_more']);
-        $this->assertSame(2, count($all->data));
-        $this->assertSame($refB->id, $all->data[0]->id);
-        $this->assertSame($refA->id, $all->data[1]->id);
+        $this->expectsRequest(
+            'post',
+            '/v1/refunds/' . TEST_RESOURCE_ID
+        );
+        $resource = Refund::update(TEST_RESOURCE_ID, array(
+            "metadata" => array("key" => "value"),
+        ));
+        $this->assertSame("Stripe\\Refund", get_class($resource));
     }
 }
