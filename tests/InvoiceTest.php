@@ -2,82 +2,86 @@
 
 namespace Stripe;
 
-class InvoiceTest extends TestCase
+define('TEST_RESOURCE_ID', 'in_123');
+
+class InvoiceTest extends StripeMockTestCase
 {
-    public function testUpcoming()
+    public function testIsListable()
     {
-        self::authorizeFromEnv();
-        $customer = self::createTestCustomer();
-
-        InvoiceItem::create(array(
-            'customer'  => $customer->id,
-            'amount'    => 0,
-            'currency'  => 'usd',
-        ));
-
-        $invoice = Invoice::upcoming(array(
-            'customer' => $customer->id,
-        ));
-        $this->assertSame($invoice->customer, $customer->id);
-        $this->assertSame($invoice->attempted, false);
+        $this->expectsRequest(
+            'get',
+            '/v1/invoices'
+        );
+        $resources = Invoice::all();
+        $this->assertTrue(is_array($resources->data));
+        $this->assertSame("Stripe\\Invoice", get_class($resources->data[0]));
     }
 
-    public function testItemsAccessWithParameter()
+    public function testIsRetrievable()
     {
-        self::authorizeFromEnv();
-        $customer = self::createTestCustomer();
+        $this->expectsRequest(
+            'get',
+            '/v1/invoices/' . TEST_RESOURCE_ID
+        );
+        $resource = Invoice::retrieve(TEST_RESOURCE_ID);
+        $this->assertSame("Stripe\\Invoice", get_class($resource));
+    }
 
-        InvoiceItem::create(array(
-            'customer'  => $customer->id,
-            'amount'    => 100,
-            'currency'  => 'usd',
+    public function testIsCreatable()
+    {
+        $this->expectsRequest(
+            'post',
+            '/v1/invoices'
+        );
+        $resource = Invoice::create(array(
+            "customer" => "cus_123"
         ));
-
-        $invoice = Invoice::upcoming(
-            array(
-            'customer' => $customer->id,
-            )
-        );
-
-        $lines = $invoice->lines->all(array('limit' => 10));
-
-        $this->assertSame(count($lines->data), 1);
-        $this->assertSame($lines->data[0]->amount, 100);
+        $this->assertSame("Stripe\\Invoice", get_class($resource));
     }
 
-    // This is really just making sure that this operation does not trigger any
-    // warnings, as it's highly nested.
-    public function testAll()
+    public function testIsSaveable()
     {
-        self::authorizeFromEnv();
-        $invoices = Invoice::all();
-        $this->assertGreaterThan(0, count($invoices));
+        $resource = Invoice::retrieve(TEST_RESOURCE_ID);
+        $resource->metadata["key"] = "value";
+        $this->expectsRequest(
+            'post',
+            '/v1/invoices/' . TEST_RESOURCE_ID
+        );
+        $resource->save();
+        $this->assertSame("Stripe\\Invoice", get_class($resource));
     }
 
-    public function testPay()
+    public function testIsUpdatable()
     {
-        $response = array(
-            'id' => 'in_foo',
-            'object' => 'invoice',
-            'paid' => false,
+        $this->expectsRequest(
+            'post',
+            '/v1/invoices/' . TEST_RESOURCE_ID
         );
-        $this->mockRequest(
-            'GET',
-            '/v1/invoices/in_foo',
-            array(),
-            $response
-        );
+        $resource = Invoice::update(TEST_RESOURCE_ID, array(
+            "metadata" => array("key" => "value"),
+        ));
+        $this->assertSame("Stripe\\Invoice", get_class($resource));
+    }
 
-        $response['paid'] = true;
-        $this->mockRequest(
-            'POST',
-            '/v1/invoices/in_foo/pay',
-            array('source' => 'src_bar'),
-            $response
+    public function testCanRetrieveUpcoming()
+    {
+        $this->expectsRequest(
+            'get',
+            '/v1/invoices/upcoming'
         );
+        $resource = Invoice::upcoming(array("customer" => "cus_123"));
+        $this->assertSame("Stripe\\Invoice", get_class($resource));
+    }
 
-        $invoice = Invoice::retrieve('in_foo');
-        $invoice->pay(array('source' => 'src_bar'));
-        $this->assertTrue($invoice->paid);
+    public function testIsPayable()
+    {
+        $invoice = Invoice::retrieve(TEST_RESOURCE_ID);
+        $this->expectsRequest(
+            'post',
+            '/v1/invoices/' . $invoice->id . '/pay'
+        );
+        $resource = $invoice->pay();
+        $this->assertSame("Stripe\\Invoice", get_class($resource));
+        $this->assertSame($resource, $invoice);
     }
 }
