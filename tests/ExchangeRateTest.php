@@ -2,30 +2,12 @@
 
 namespace Stripe;
 
-class ExchangeRateTest extends TestCase
+class ExchangeRateTest extends StripeMockTestCase
 {
-    public function testRetrieve()
+    public function testIsListable()
     {
-        $this->mockRequest(
-            'GET',
-            '/v1/exchange_rates/usd',
-            array(),
-            array(
-                'id' => 'usd',
-                'object' => 'exchange_rate',
-                'rates' => array('eur' => 0.845876),
-            )
-        );
-
-        $currency = "usd";
-        $rates = ExchangeRate::retrieve($currency);
-        $this->assertEquals('exchange_rate', $rates->object);
-    }
-
-    public function testList()
-    {
-        $this->mockRequest(
-            'GET',
+        $this->stubRequest(
+            'get',
             '/v1/exchange_rates',
             array(),
             array(
@@ -48,5 +30,21 @@ class ExchangeRateTest extends TestCase
         $listRates = ExchangeRate::all();
         $this->assertTrue(is_array($listRates->data));
         $this->assertEquals('exchange_rate', $listRates->data[0]->object);
+    }
+
+    public function testIsRetrievable()
+    {
+        $this->stubRequest(
+            'get',
+            '/v1/exchange_rates/usd',
+            array(),
+            array(
+                'id' => 'usd',
+                'object' => 'exchange_rate',
+                'rates' => array('eur' => 0.845876),
+            )
+        );
+        $rates = ExchangeRate::retrieve("usd");
+        $this->assertEquals('exchange_rate', $rates->object);
     }
 }
