@@ -2,150 +2,75 @@
 
 namespace Stripe;
 
-class ProductSKUOrderTest extends TestCase
+define('TEST_RESOURCE_ID', 'prod_123');
+
+class ProductTest extends StripeMockTestCase
 {
-    public function testProductFalseyId()
+    public function testIsListable()
     {
-        try {
-            Stripe::setApiKey('sk_test_JieJALRz7rPz7boV17oMma7a');
-            $retrievedProduct = Product::retrieve('0');
-        } catch (Error\InvalidRequest $e) {
-            // Can either succeed or 404, all other errors are bad
-            if ($e->httpStatus !== 404) {
-                $this->fail();
-            }
-        }
+        $this->expectsRequest(
+            'get',
+            '/v1/products'
+        );
+        $resources = Product::all();
+        $this->assertTrue(is_array($resources->data));
+        $this->assertSame("Stripe\\Product", get_class($resources->data[0]));
     }
 
-    public function testProductCreateUpdateRead()
+    public function testIsRetrievable()
     {
-
-        Stripe::setApiKey('sk_test_JieJALRz7rPz7boV17oMma7a');
-        $ProductID = 'gold-' . self::generateRandomString(20);
-        $p = Product::create(array(
-            'name'     => 'Gold Product',
-            'id'       => $ProductID,
-            'url'      => 'www.stripe.com/gold'
-        ));
-        $this->assertSame($p->url, 'www.stripe.com/gold');
-
-        $p->name = 'A new Product name';
-        $p->save();
-        $this->assertSame($p->name, 'A new Product name');
-        $this->assertSame($p->url, 'www.stripe.com/gold');
-
-        $stripeProduct = Product::retrieve($ProductID);
-        $this->assertSame($p->name, $stripeProduct->name);
-        $this->assertSame($stripeProduct->url, 'www.stripe.com/gold');
+        $this->expectsRequest(
+            'get',
+            '/v1/products/' . TEST_RESOURCE_ID
+        );
+        $resource = Product::retrieve(TEST_RESOURCE_ID);
+        $this->assertSame("Stripe\\Product", get_class($resource));
     }
 
-    public function testSKUCreateUpdateRead()
+    public function testIsCreatable()
     {
-        Stripe::setApiKey('sk_test_JieJALRz7rPz7boV17oMma7a');
-        $ProductID = 'silver-' . self::generateRandomString(20);
-        $p = Product::create(array(
-            'name'     => 'Silver Product',
-            'id'       => $ProductID,
-            'url'      => 'www.stripe.com/silver'
+        $this->expectsRequest(
+            'post',
+            '/v1/products'
+        );
+        $resource = Product::create(array(
+            'name' => 'name'
         ));
-
-        $SkuID = 'silver-sku-' . self::generateRandomString(20);
-        $sku = SKU::create(array(
-            'price'     => 500,
-            'currency'  => 'usd',
-            'id'        => $SkuID,
-            'inventory' => array(
-                'type'     => 'finite',
-                'quantity' => 40
-            ),
-            'product'   => $ProductID
-        ));
-
-        $sku->price = 600;
-        $sku->inventory->quantity = 50;
-        $sku->save();
-        $this->assertSame($sku->price, 600);
-        $this->assertSame(50, $sku->inventory->quantity);
-
-        $stripeSku = SKU::retrieve($SkuID);
-        $this->assertSame($sku->price, 600);
-        $this->assertSame('finite', $sku->inventory->type);
-        $this->assertSame(50, $sku->inventory->quantity);
+        $this->assertSame("Stripe\\Product", get_class($resource));
     }
 
-    public function testSKUProductDelete()
+    public function testIsSaveable()
     {
-        Stripe::setApiKey('sk_test_JieJALRz7rPz7boV17oMma7a');
-        $ProductID = 'silver-' . self::generateRandomString(20);
-        $p = Product::create(array(
-            'name'     => 'Silver Product',
-            'id'       => $ProductID,
-            'url'      => 'stripe.com/silver'
-        ));
-
-        $SkuID = 'silver-sku-' . self::generateRandomString(20);
-        $sku = SKU::create(array(
-            'price'     => 500,
-            'currency'  => 'usd',
-            'id'        => $SkuID,
-            'inventory' => array(
-                'type'     => 'finite',
-                'quantity' => 40
-            ),
-            'product'   => $ProductID
-        ));
-
-        $deletedSku = $sku->delete();
-        $this->assertTrue($deletedSku->deleted);
-
-        $deletedProduct = $p->delete();
-        $this->assertTrue($deletedProduct->deleted);
+        $resource = Product::retrieve(TEST_RESOURCE_ID);
+        $resource->metadata["key"] = "value";
+        $this->expectsRequest(
+            'post',
+            '/v1/products/' . TEST_RESOURCE_ID
+        );
+        $resource->save();
+        $this->assertSame("Stripe\\Product", get_class($resource));
     }
 
-    public function testOrderCreateUpdateRetrievePayReturn()
+    public function testIsUpdatable()
     {
-        Stripe::setApiKey('sk_test_JieJALRz7rPz7boV17oMma7a');
-        $ProductID = 'silver-' . self::generateRandomString(20);
-        $p = Product::create(array(
-            'name'      => 'Silver Product',
-            'id'        => $ProductID,
-            'url'       => 'www.stripe.com/silver',
-            'shippable' => false,
+        $this->expectsRequest(
+            'post',
+            '/v1/products/' . TEST_RESOURCE_ID
+        );
+        $resource = Product::update(TEST_RESOURCE_ID, array(
+            "metadata" => array("key" => "value"),
         ));
+        $this->assertSame("Stripe\\Product", get_class($resource));
+    }
 
-        $SkuID = 'silver-sku-' . self::generateRandomString(20);
-        $sku = SKU::create(array(
-            'price'     => 500,
-            'currency'  => 'usd',
-            'id'        => $SkuID,
-            'inventory' => array(
-                'type'     => 'finite',
-                'quantity' => 40
-            ),
-            'product'   => $ProductID
-        ));
-
-        $order = Order::create(array(
-            'items' => array(
-                0 => array(
-                    'type' => 'sku',
-                    'parent' => $SkuID,
-                ),
-            ),
-            'currency' => 'usd',
-            'email' => 'foo@bar.com',
-        ));
-
-        $order->metadata->foo = "bar";
-        $order->save();
-
-        $stripeOrder = Order::retrieve($order->id);
-        $this->assertSame($order->metadata->foo, "bar");
-
-        $order->pay(array('source' => 'tok_visa'));
-        $this->assertSame($order->status, 'paid');
-
-        $orderReturn = $order->returnOrder();
-        $this->assertSame($orderReturn->order, $order->id);
+    public function testIsDeletable()
+    {
+        $resource = Product::retrieve(TEST_RESOURCE_ID);
+        $this->expectsRequest(
+            'delete',
+            '/v1/products/' . TEST_RESOURCE_ID
+        );
+        $resource->delete();
+        $this->assertSame("Stripe\\Product", get_class($resource));
     }
 }
