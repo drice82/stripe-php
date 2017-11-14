@@ -2,45 +2,31 @@
 
 namespace Stripe;
 
-class ThreeDSecureTest extends TestCase
+define('TEST_RESOURCE_ID', 'tdsrc_123');
+
+class ThreeDSecureTest extends StripeMockTestCase
 {
-    public function testRetrieve()
+    public function testIsRetrievable()
     {
-        $this->mockRequest(
-            'GET',
-            '/v1/3d_secure/tdsrc_test',
-            array(),
-            array(
-                'id' => 'tdsrc_test',
-                'object' => 'three_d_secure'
-            )
+        $this->expectsRequest(
+            'get',
+            '/v1/3d_secure/' . TEST_RESOURCE_ID
         );
-        $three_d_secure = ThreeDSecure::retrieve('tdsrc_test');
-        $this->assertSame($three_d_secure->id, 'tdsrc_test');
+        $resource = ThreeDSecure::retrieve(TEST_RESOURCE_ID);
+        $this->assertSame("Stripe\\ThreeDSecure", get_class($resource));
     }
 
-    public function testCreate()
+    public function testIsCreatable()
     {
-        $this->mockRequest(
-            'POST',
-            '/v1/3d_secure',
-            array(
-                'card' => 'tok_test',
-                'amount' => 1500,
-                'currency' => 'usd',
-                'return_url' => 'https://example.org/3d-secure-result'
-            ),
-            array(
-                'id' => 'tdsrc_test',
-                'object' => 'three_d_secure'
-            )
+        $this->expectsRequest(
+            'post',
+            '/v1/3d_secure'
         );
-        $three_d_secure = ThreeDSecure::create(array(
-                'card' => 'tok_test',
-                'amount' => 1500,
-                'currency' => 'usd',
-                'return_url' => 'https://example.org/3d-secure-result'
+        $resource = ThreeDSecure::create(array(
+            "amount" => 100,
+            "currency" => "usd",
+            "return_url" => "url"
         ));
-        $this->assertSame($three_d_secure->id, 'tdsrc_test');
+        $this->assertSame("Stripe\\ThreeDSecure", get_class($resource));
     }
 }

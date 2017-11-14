@@ -2,12 +2,27 @@
 
 namespace Stripe;
 
-class TokenTest extends TestCase
+define('TEST_RESOURCE_ID', 'tok_123');
+
+class TokenTest extends StripeMockTestCase
 {
-    public function testUrls()
+    public function testIsRetrievable()
     {
-        $this->assertSame(Token::classUrl(), '/v1/tokens');
-        $token = new Token('abcd/efgh');
-        $this->assertSame($token->instanceUrl(), '/v1/tokens/abcd%2Fefgh');
+        $this->expectsRequest(
+            'get',
+            '/v1/tokens/' . TEST_RESOURCE_ID
+        );
+        $resource = Token::retrieve(TEST_RESOURCE_ID);
+        $this->assertSame("Stripe\\Token", get_class($resource));
+    }
+
+    public function testIsCreatable()
+    {
+        $this->expectsRequest(
+            'post',
+            '/v1/tokens'
+        );
+        $resource = Token::create(array("card" => "tok_visa"));
+        $this->assertSame("Stripe\\Token", get_class($resource));
     }
 }
