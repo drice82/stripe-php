@@ -16,11 +16,13 @@ class StripeMockTestCase extends \PHPUnit_Framework_TestCase
     {
         $this->origApiBase = Stripe::$apiBase;
         $this->origApiKey = Stripe::getApiKey();
+        $this->origClientId = Stripe::getClientId();
 
         $this->mock = $this->getMock('\Stripe\HttpClient\ClientInterface');
 
         Stripe::$apiBase = "http://localhost:" . MOCK_PORT;
         Stripe::setApiKey("sk_test_123");
+        Stripe::setClientId("ca_123");
 
         ApiRequestor::setHttpClient(HttpClient\CurlClient::instance());
     }
@@ -29,6 +31,7 @@ class StripeMockTestCase extends \PHPUnit_Framework_TestCase
     {
         Stripe::$apiBase = $this->origApiBase;
         Stripe::setApiKey($this->origApiKey);
+        Stripe::setClientId($this->origClientId);
     }
 
     protected function expectsRequest($method, $path, $params = null, $headers = null)
@@ -57,11 +60,14 @@ class StripeMockTestCase extends \PHPUnit_Framework_TestCase
         return $curlClient->request($method, $absUrl, $headers, $params, $hasFile);
     }
 
-    protected function stubRequest($method, $path, $params = null, $response = array())
+    protected function stubRequest($method, $path, $params = null, $response = array(), $base = null)
     {
         ApiRequestor::setHttpClient($this->mock);
 
-        $absUrl = Stripe::$apiBase . $path;
+        if ($base === null) {
+            $base = Stripe::$apiBase;
+        }
+        $absUrl = $base . $path;
 
         $this->mock
              ->expects($this->once())

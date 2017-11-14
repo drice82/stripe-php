@@ -95,6 +95,24 @@ class AccountTest extends StripeMockTestCase
         $this->assertSame($resource, $account);
     }
 
+    public function testIsDeauthorizable()
+    {
+        $resource = Account::retrieve(TEST_RESOURCE_ID);
+        $this->stubRequest(
+            'post',
+            '/oauth/deauthorize',
+            array(
+                'client_id' => Stripe::getClientId(),
+                'stripe_user_id' => $resource->id,
+            ),
+            array(
+                'stripe_user_id' => $resource->id,
+            ),
+            Stripe::$connectBase
+        );
+        $resource->deauthorize();
+    }
+
     public function testCanCreateExternalAccount()
     {
         $this->expectsRequest(
