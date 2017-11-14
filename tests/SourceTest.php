@@ -2,211 +2,98 @@
 
 namespace Stripe;
 
-class SourceTest extends TestCase
+define('TEST_RESOURCE_ID', 'src_123');
+
+class SourceTest extends StripeMockTestCase
 {
-    public function testRetrieve()
+    public function testIsRetrievable()
     {
-        $this->mockRequest(
-            'GET',
-            '/v1/sources/src_foo',
-            array(),
-            array(
-                'id' => 'src_foo',
-                'object' => 'source',
-            )
+        $this->expectsRequest(
+            'get',
+            '/v1/sources/' . TEST_RESOURCE_ID
         );
-        $source = Source::retrieve('src_foo');
-        $this->assertSame($source->id, 'src_foo');
+        $resource = Source::retrieve(TEST_RESOURCE_ID);
+        $this->assertSame("Stripe\\Source", get_class($resource));
     }
 
-    public function testCreate()
+    public function testIsCreatable()
     {
-        $this->mockRequest(
-            'POST',
-            '/v1/sources',
-            array(
-                'type' => 'bitcoin',
-                'amount' => 1000,
-                'currency' => 'usd',
-                'owner' => array('email' => 'jenny.rosen@example.com'),
-            ),
-            array(
-                'id' => 'src_foo',
-                'object' => 'source'
-            )
+        $this->expectsRequest(
+            'post',
+            '/v1/sources'
         );
-        $source = Source::create(array(
-            'type' => 'bitcoin',
-            'amount' => 1000,
-            'currency' => 'usd',
-            'owner' => array('email' => 'jenny.rosen@example.com'),
+        $resource = Source::create(array(
+            "type" => "card"
         ));
-        $this->assertSame($source->id, 'src_foo');
+        $this->assertSame("Stripe\\Source", get_class($resource));
     }
 
-    public function testSave()
+    public function testIsSaveable()
     {
-        $response = array(
-            'id' => 'src_foo',
-            'object' => 'source',
-            'metadata' => array(),
+        $resource = Source::retrieve(TEST_RESOURCE_ID);
+        $resource->metadata["key"] = "value";
+        $this->expectsRequest(
+            'post',
+            '/v1/sources/' . TEST_RESOURCE_ID
         );
-        $this->mockRequest(
-            'GET',
-            '/v1/sources/src_foo',
-            array(),
-            $response
-        );
-
-        $response['metadata'] = array('foo' => 'bar');
-        $this->mockRequest(
-            'POST',
-            '/v1/sources/src_foo',
-            array(
-                'metadata' => array('foo' => 'bar'),
-            ),
-            $response
-        );
-
-        $source = Source::retrieve('src_foo');
-        $source->metadata['foo'] = 'bar';
-        $source->save();
-        $this->assertSame($source->metadata['foo'], 'bar');
+        $resource->save();
+        $this->assertSame("Stripe\\Source", get_class($resource));
     }
 
-    public function testSaveOwner()
+    public function testIsUpdatable()
     {
-        $response = array(
-            'id' => 'src_foo',
-            'object' => 'source',
-            'owner' => array(
-                'name' => null,
-                'address' => null,
-            ),
+        $this->expectsRequest(
+            'post',
+            '/v1/sources/' . TEST_RESOURCE_ID
         );
-        $this->mockRequest(
-            'GET',
-            '/v1/sources/src_foo',
-            array(),
-            $response
-        );
-
-        $response['owner'] = array(
-            'name' => "Stripey McStripe",
-            'address' => array(
-                'line1' => "Test Address",
-                'city' => "Test City",
-                'postal_code' => "12345",
-                'state' => "Test State",
-                'country' => "Test Country",
-            )
-        );
-        $this->mockRequest(
-            'POST',
-            '/v1/sources/src_foo',
-            array(
-                'owner' => array(
-                    'name' => "Stripey McStripe",
-                    'address' => array(
-                        'line1' => "Test Address",
-                        'city' => "Test City",
-                        'postal_code' => "12345",
-                        'state' => "Test State",
-                        'country' => "Test Country",
-                    ),
-                ),
-            ),
-            $response
-        );
-
-        $source = Source::retrieve('src_foo');
-        $source->owner['name'] = "Stripey McStripe";
-        $source->owner['address'] = array(
-            'line1' => "Test Address",
-            'city' => "Test City",
-            'postal_code' => "12345",
-            'state' => "Test State",
-            'country' => "Test Country",
-        );
-        $source->save();
-        $this->assertSame($source->owner['name'], "Stripey McStripe");
-        $this->assertSame($source->owner['address']['line1'], "Test Address");
-        $this->assertSame($source->owner['address']['city'], "Test City");
-        $this->assertSame($source->owner['address']['postal_code'], "12345");
-        $this->assertSame($source->owner['address']['state'], "Test State");
-        $this->assertSame($source->owner['address']['country'], "Test Country");
-    }
-
-    public function testDetachAttached()
-    {
-        $response = array(
-            'id' => 'src_foo',
-            'object' => 'source',
-            'customer' => 'cus_bar',
-        );
-        $source = Source::constructFrom(
-            $response,
-            new Util\RequestOptions()
-        );
-
-        unset($response['customer']);
-        $this->mockRequest(
-            'DELETE',
-            '/v1/customers/cus_bar/sources/src_foo',
-            array(),
-            $response
-        );
-
-        $source->detach();
-        $this->assertFalse(array_key_exists('customer', $source));
-    }
-
-    /**
-     * @expectedException Stripe\Error\Api
-     */
-    public function testDetachUnattached()
-    {
-        $response = array(
-            'id' => 'src_foo',
-            'object' => 'source',
-        );
-        $source = Source::constructFrom(
-            $response,
-            new Util\RequestOptions()
-        );
-
-        $source->detach();
-    }
-
-    public function testVerify()
-    {
-        $response = array(
-            'id' => 'src_foo',
-            'object' => 'source',
-            'verification' => array('status' => 'pending'),
-        );
-        $this->mockRequest(
-            'GET',
-            '/v1/sources/src_foo',
-            array(),
-            $response
-        );
-
-        $response['verification']['status'] = 'succeeded';
-        $this->mockRequest(
-            'POST',
-            '/v1/sources/src_foo/verify',
-            array(
-                'values' => array(32, 45),
-            ),
-            $response
-        );
-
-        $source = Source::retrieve('src_foo');
-        $this->assertSame($source->verification->status, 'pending');
-        $source->verify(array(
-            'values' => array(32, 45),
+        $resource = Source::update(TEST_RESOURCE_ID, array(
+            "metadata" => array("key" => "value"),
         ));
-        $this->assertSame($source->verification->status, 'succeeded');
+        $this->assertSame("Stripe\\Source", get_class($resource));
+    }
+
+    public function testIsDetachable()
+    {
+        $resource = Source::retrieve(TEST_RESOURCE_ID);
+        $resource->customer = "cus_123";
+        $this->expectsRequest(
+            'delete',
+            '/v1/customers/cus_123/sources/' . TEST_RESOURCE_ID
+        );
+        $resource->delete();
+        $this->assertSame("Stripe\\Source", get_class($resource));
+    }
+
+    /*
+    This does not yet work with our version of PHP Unit?
+    public function testDetachErrors()
+    {
+        $resource = Source::retrieve(TEST_RESOURCE_ID);
+        $this->expectException(Stripe\Error\Api::class);
+        $resource->detach();
+    }
+    */
+
+    public function testCanListSourceTransactions()
+    {
+        $source = Source::retrieve(TEST_RESOURCE_ID);
+        $this->expectsRequest(
+            'get',
+            '/v1/sources/' . $source->id . "/source_transactions"
+        );
+        $resources = $source->sourceTransactions();
+        $this->assertTrue(is_array($resources->data));
+        $this->assertSame("Stripe\\SourceTransaction", get_class($resources->data[0]));
+    }
+
+    public function testCanVerify()
+    {
+        $resource = Source::retrieve(TEST_RESOURCE_ID);
+        $this->expectsRequest(
+            'post',
+            '/v1/sources/' . TEST_RESOURCE_ID . "/verify"
+        );
+        $resource->verify(array("values" => array(32,45)));
+        $this->assertSame("Stripe\\Source", get_class($resource));
     }
 }
