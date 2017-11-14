@@ -2,18 +2,20 @@
 
 namespace Stripe;
 
-class TransferReversalTest extends TestCase
-{
-    // The resource that was traditionally called "transfer" became a "payout"
-    // in API version 2017-04-06. We're testing traditional transfers here, so
-    // we force the API version just prior anywhere that we need to.
-    private $opts = array('stripe_version' => '2017-02-14');
+define('TEST_RESOURCE_ID', 'trr_123');
+define('TEST_TRANSFER_ID', 'tr_123');
 
-    public function testList()
+class TransferreversalTest extends StripeMockTestCase
+{
+    public function testIsSaveable()
     {
-        $transfer = self::createTestTransfer(array(), $this->opts);
-        $all = $transfer->reversals->all();
-        $this->assertSame(false, $all['has_more']);
-        $this->assertSame(0, count($all->data));
+        $resource = Transfer::retrieveReversal(TEST_TRANSFER_ID, TEST_RESOURCE_ID);
+        $resource->metadata["key"] = "value";
+        $this->expectsRequest(
+            'post',
+            '/v1/transfers/' . $resource->transfer . '/reversals/' . $resource->id
+        );
+        $resource->save();
+        $this->assertSame("Stripe\\TransferReversal", get_class($resource));
     }
 }

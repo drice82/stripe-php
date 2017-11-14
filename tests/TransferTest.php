@@ -2,116 +2,139 @@
 
 namespace Stripe;
 
-class TransferTest extends TestCase
+define('TEST_RESOURCE_ID', 'tr_123');
+define('TEST_REVERSAL_ID', 'trr_123');
+
+class TransferTest extends StripeMockTestCase
 {
-    // The resource that was traditionally called "transfer" became a "payout"
-    // in API version 2017-04-06. We're testing traditional transfers here, so
-    // we force the API version just prior anywhere that we need to.
-    private $opts = array('stripe_version' => '2017-02-14');
-
-    public function testCreate()
+    public function testIsListable()
     {
-        $transfer = self::createTestTransfer(array(), $this->opts);
-        $this->assertSame('transfer', $transfer->object);
+        $this->expectsRequest(
+            'get',
+            '/v1/transfers'
+        );
+        $resources = Transfer::all();
+        $this->assertTrue(is_array($resources->data));
+        $this->assertSame("Stripe\\Transfer", get_class($resources->data[0]));
     }
 
-    public function testRetrieve()
+    public function testIsRetrievable()
     {
-        $transfer = self::createTestTransfer(array(), $this->opts);
-        $reloaded = Transfer::retrieve($transfer->id, $this->opts);
-        $this->assertSame($reloaded->id, $transfer->id);
+        $this->expectsRequest(
+            'get',
+            '/v1/transfers/' . TEST_RESOURCE_ID
+        );
+        $resource = Transfer::retrieve(TEST_RESOURCE_ID);
+        $this->assertSame("Stripe\\Transfer", get_class($resource));
     }
 
-    public function testTransferUpdateMetadata()
+    public function testIsCreatable()
     {
-        $transfer = self::createTestTransfer(array(), $this->opts);
-
-        $transfer->metadata['test'] = 'foo bar';
-        $transfer->save();
-
-        $updatedTransfer = Transfer::retrieve($transfer->id, $this->opts);
-        $this->assertSame('foo bar', $updatedTransfer->metadata['test']);
+        $this->expectsRequest(
+            'post',
+            '/v1/transfers'
+        );
+        $resource = Transfer::create(array(
+            "amount" => 100,
+            "currency" => "usd",
+            "destination" => "acct_123"
+        ));
+        $this->assertSame("Stripe\\Transfer", get_class($resource));
     }
 
-    public function testTransferUpdateMetadataAll()
+    public function testIsSaveable()
     {
-        $transfer = self::createTestTransfer(array(), $this->opts);
-
-        $transfer->metadata = array('test' => 'foo bar');
-        $transfer->save();
-
-        $updatedTransfer = Transfer::retrieve($transfer->id, $this->opts);
-        $this->assertSame('foo bar', $updatedTransfer->metadata['test']);
+        $resource = Transfer::retrieve(TEST_RESOURCE_ID);
+        $resource->metadata["key"] = "value";
+        $this->expectsRequest(
+            'post',
+            '/v1/transfers/' . $resource->id
+        );
+        $resource->save();
+        $this->assertSame("Stripe\\Transfer", get_class($resource));
     }
 
-    public function testStaticCreateReversal()
+    public function testIsUpdatable()
     {
-        $this->mockRequest(
-            'POST',
-            '/v1/transfers/tr_123/reversals',
-            array(),
-            array('id' => 'trr_123', 'object' => 'transfer_reversal')
+        $this->expectsRequest(
+            'post',
+            '/v1/transfers/' . TEST_RESOURCE_ID
         );
-
-        $reversal = Transfer::createReversal(
-            'tr_123'
-        );
-
-        $this->assertSame('trr_123', $reversal->id);
-        $this->assertSame('transfer_reversal', $reversal->object);
+        $resource = Transfer::update(TEST_RESOURCE_ID, array(
+            "metadata" => array("key" => "value"),
+        ));
+        $this->assertSame("Stripe\\Transfer", get_class($resource));
     }
 
-    public function testStaticRetrieveReversal()
+    public function testIsReversable()
     {
-        $this->mockRequest(
-            'GET',
-            '/v1/transfers/tr_123/reversals/trr_123',
-            array(),
-            array('id' => 'trr_123', 'object' => 'transfer_reversal')
+        $resource = Transfer::retrieve(TEST_RESOURCE_ID);
+        $this->expectsRequest(
+            'post',
+            '/v1/transfers/' . $resource->id . '/reversals'
         );
-
-        $reversal = Transfer::retrieveReversal(
-            'tr_123',
-            'trr_123'
-        );
-
-        $this->assertSame('trr_123', $reversal->id);
-        $this->assertSame('transfer_reversal', $reversal->object);
+        $resource->reverse();
+        $this->assertSame("Stripe\\Transfer", get_class($resource));
     }
 
-    public function testStaticUpdateReversal()
+    public function testIsCancelable()
     {
-        $this->mockRequest(
-            'POST',
-            '/v1/transfers/tr_123/reversals/trr_123',
-            array('metadata' => array('foo' => 'bar')),
-            array('id' => 'trr_123', 'object' => 'transfer_reversal')
-        );
+        $transfer = Transfer::retrieve(TEST_RESOURCE_ID);
 
-        $reversal = Transfer::updateReversal(
-            'tr_123',
-            'trr_123',
-            array('metadata' => array('foo' => 'bar'))
+        // stripe-mock does not support this anymore so we stub it
+        $this->stubRequest(
+            'post',
+            '/v1/transfers/' . $transfer->id . '/cancel'
         );
-
-        $this->assertSame('trr_123', $reversal->id);
-        $this->assertSame('transfer_reversal', $reversal->object);
+        $resource = $transfer->cancel();
+        $this->assertSame("Stripe\\Transfer", get_class($resource));
+        $this->assertSame($resource, $transfer);
     }
 
-    public function testStaticAllReversals()
+    public function testCanCreateReversal()
     {
-        $this->mockRequest(
-            'GET',
-            '/v1/transfers/tr_123/reversals',
-            array(),
-            array('object' => 'list', 'data' => array())
+        $this->expectsRequest(
+            'post',
+            '/v1/transfers/' . TEST_RESOURCE_ID . '/reversals'
         );
+        $resource = Transfer::createReversal(TEST_RESOURCE_ID);
+        $this->assertSame("Stripe\\TransferReversal", get_class($resource));
+    }
 
-        $reversals = Transfer::allReversals(
-            'tr_123'
+    public function testCanRetrieveReversal()
+    {
+        $this->expectsRequest(
+            'get',
+            '/v1/transfers/' . TEST_RESOURCE_ID . '/reversals/' . TEST_REVERSAL_ID
         );
+        $resource = Transfer::retrieveReversal(TEST_RESOURCE_ID, TEST_REVERSAL_ID);
+        $this->assertSame("Stripe\\TransferReversal", get_class($resource));
+    }
 
-        $this->assertSame('list', $reversals->object);
-        $this->assertEmpty($reversals->data);
+    public function testCanUpdateReversal()
+    {
+        $this->expectsRequest(
+            'post',
+            '/v1/transfers/' . TEST_RESOURCE_ID . '/reversals/' . TEST_REVERSAL_ID
+        );
+        $resource = Transfer::updateReversal(
+            TEST_RESOURCE_ID,
+            TEST_REVERSAL_ID,
+            array(
+                "metadata" => array("key" => "value"),
+            )
+        );
+        $this->assertSame("Stripe\\TransferReversal", get_class($resource));
+    }
+
+    public function testCanListReversal()
+    {
+        $this->expectsRequest(
+            'get',
+            '/v1/transfers/' . TEST_RESOURCE_ID . '/reversals'
+        );
+        $resources = Transfer::allReversals(TEST_RESOURCE_ID);
+        $this->assertTrue(is_array($resources->data));
+        $this->assertSame("Stripe\\TransferReversal", get_class($resources->data[0]));
     }
 }
