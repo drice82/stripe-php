@@ -137,9 +137,15 @@ class CustomerTest extends StripeMockTestCase
         $this->stubRequest(
             'post',
             '/v1/customers/' . $customer->id . '/subscription',
-            array("plan" => "plan")
+            array("plan" => "plan"),
+            array(
+                "object" => "subscription",
+                "id" => "sub_foo"
+            )
         );
-        $customer->updateSubscription(array("plan" => "plan"));
+        $resource = $customer->updateSubscription(array("plan" => "plan"));
+        $this->assertSame("Stripe\\Subscription", get_class($resource));
+        $this->assertSame("sub_foo", $customer->subscription->id);
     }
 
     public function testCanCancelSubscription()
@@ -147,9 +153,16 @@ class CustomerTest extends StripeMockTestCase
         $customer = Customer::retrieve(TEST_RESOURCE_ID);
         $this->stubRequest(
             'delete',
-            '/v1/customers/' . $customer->id . '/subscription'
+            '/v1/customers/' . $customer->id . '/subscription',
+            array(),
+            array(
+                "object" => "subscription",
+                "id" => "sub_foo"
+            )
         );
-        $customer->cancelSubscription();
+        $resource = $customer->cancelSubscription();
+        $this->assertSame("Stripe\\Subscription", get_class($resource));
+        $this->assertSame("sub_foo", $customer->subscription->id);
     }
 
     public function testCanDeleteDiscount()
@@ -159,8 +172,8 @@ class CustomerTest extends StripeMockTestCase
             'delete',
             '/v1/customers/' . $customer->id . '/discount'
         );
-        $resource = $customer->deleteDiscount();
-        $this->assertSame($resource, null);
+        $customer->deleteDiscount();
+        $this->assertSame($customer->discount, null);
     }
 
     public function testCanCreateSource()
