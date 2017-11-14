@@ -64,15 +64,14 @@ class SourceTest extends StripeMockTestCase
         $this->assertSame("Stripe\\Source", get_class($resource));
     }
 
-    /*
-    This does not yet work with our version of PHP Unit?
+    /**
+     * @expectedException \Stripe\Error\Api
+     */
     public function testDetachErrors()
     {
         $resource = Source::retrieve(TEST_RESOURCE_ID);
-        $this->expectException(Stripe\Error\Api::class);
         $resource->detach();
     }
-    */
 
     public function testCanListSourceTransactions()
     {
